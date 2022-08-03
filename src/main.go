@@ -73,17 +73,18 @@ func checkErrorAndLog(e error) {
 func updateRepo(path string) {
 
 	lockfile := path + "/" + LockFileName
-	log.Debugf("Trying to create lockfile %s", lockfile)
+	log.Infof("Trying to create lockfile %s", lockfile)
 	golock.Lock(lockfile)
 	
 	// is there a block level defer in go ? 
 	defer golock.Unlock(lockfile)
-	defer log.Debug("Unlocking directory %s", path)
+	defer log.Infof("Unlocking directory %s", path)
 
+	cachedir := path + "/" + "cachedir"
 	cmd := "createrepo"
-	cmdArgs := []string{"--update", path}
+	cmdArgs := []string{"--update", path, "--cachedir", cachedir}
 
-	log.Debugf("Running command: %s %s", cmd, strings.Join(cmdArgs, " "))
+	log.Infof("Running command: %s %s", cmd, strings.Join(cmdArgs, " "))
 
 	if err := exec.Command(cmd, cmdArgs...).Run(); err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
