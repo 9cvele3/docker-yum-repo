@@ -1,14 +1,9 @@
 # build stage
-FROM golang:1.8.3 as builder
+FROM golang:1.18 as builder
 
 WORKDIR /go/src/github.com/dgutierrez1287/docker-yum-repo
 
-RUN go get -d -v github.com/Sirupsen/logrus && \
-    go get -d -v github.com/rjeczalik/notify && \
-    go get -d -v gopkg.in/dickeyxxx/golock.v1 && \
-    go get -d -v gopkg.in/natefinch/lumberjack.v2
-
-COPY src/*.go .
+COPY src/* ./
 
 RUN GOOS=linux go build -x -o repoScanner .
 

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/rjeczalik/notify"
 	"gopkg.in/dickeyxxx/golock.v1"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -70,14 +70,18 @@ func checkErrorAndLog(e error) {
 // This will run the update for the repo
 // This will take in a pointer to the path
 // This will return nothing
-func updateRepo(path *string) {
+func updateRepo(path string) {
 
-	lockfile := *path + "/" + LockFileName
+	lockfile := path + "/" + LockFileName
 	log.Debugf("Trying to create lockfile %s", lockfile)
 	golock.Lock(lockfile)
+	
+	// is there a block level defer in go ? 
+	defer golock.Unlock(lockfile)
+	defer log.Debug("Unlocking directory %s", path)
 
 	cmd := "createrepo"
-	cmdArgs := []string{"--update", *path}
+	cmdArgs := []string{"--update", path}
 
 	log.Debugf("Running command: %s %s", cmd, strings.Join(cmdArgs, " "))
 
@@ -85,17 +89,14 @@ func updateRepo(path *string) {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			status := exitErr.Sys().(syscall.WaitStatus)
 			if status != 0 {
-				log.Errorf("Could not update repo %s", *path)
+				log.Errorf("Could not update repo %s", path)
 			}
 		} else {
 			checkErrorAndLog(err)
 		}
 	} else {
-		log.Debugf("Successfully updated repo %s", *path)
+		log.Debugf("Successfully updated repo %s", path)
 	}
-
-	log.Debug("Unlocking directory")
-	golock.Unlock(lockfile)
 }
 
 // findRpms(path string, info os.FileInfo, err error)
@@ -152,7 +153,7 @@ func initialScanAndUpdate() {
 
 	for rpmPath := range ch {
 		log.Debugf("Creating go routine to update %s", rpmPath)
-		go updateRepo(&rpmPath)
+		go updateRepo(rpmPath)
 	}
 }
 
@@ -209,7 +210,7 @@ func main() {
 			// Get the directory and start update
 			rpmDir := filepath.Dir(event.Path())
 			log.Infof("RPM change detected in %s", rpmDir)
-			go updateRepo(&rpmDir)
+			go updateRepo(rpmDir)
 		}
 	}
 }
