@@ -66,20 +66,7 @@ func checkErrorAndLog(e error) {
 	}
 }
 
-// updateRepo(path *string)
-// This will run the update for the repo
-// This will take in a pointer to the path
-// This will return nothing
-func updateRepo(path string) {
-
-	lockfile := path + "/" + LockFileName
-	log.Infof("Trying to create lockfile %s", lockfile)
-	golock.Lock(lockfile)
-	
-	// is there a block level defer in go ? 
-	defer golock.Unlock(lockfile)
-	defer log.Infof("Unlocking directory %s", path)
-
+func updateRepoCmd(path string) bool {
 	cachedir := path + "/" + "cachedir"
 	cmd := "createrepo"
 	cmdArgs := []string{"--update", path, "--cachedir", cachedir}
@@ -97,7 +84,31 @@ func updateRepo(path string) {
 		}
 	} else {
 		log.Debugf("Successfully updated repo %s", path)
+        return true
 	}
+
+    return false
+}
+// updateRepo(path *string)
+// This will run the update for the repo
+// This will take in a pointer to the path
+// This will return nothing
+func updateRepo(path string) {
+
+	lockfile := path + "/" + LockFileName
+	log.Infof("Trying to create lockfile %s", lockfile)
+	golock.Lock(lockfile)
+	
+	// is there a block level defer in go ? 
+	defer golock.Unlock(lockfile)
+	defer log.Infof("Unlocking directory %s", path)
+
+    if !updateRepoCmd(path) {
+        log.Infof("Regenerating whole repo");
+        os.RemoveAll(path + "/" + "repodata");
+        os.RemoveAll(path + "/" + ".repodata");
+        updateRepoCmd(path)
+    }
 }
 
 // findRpms(path string, info os.FileInfo, err error)
@@ -153,6 +164,7 @@ func initialScanAndUpdate() {
 	close(ch)
 
 	for rpmPath := range ch {
+        os.RemoveAll(rpmPath + "/" + LockFileName)
 		log.Debugf("Creating go routine to update %s", rpmPath)
 		go updateRepo(rpmPath)
 	}
